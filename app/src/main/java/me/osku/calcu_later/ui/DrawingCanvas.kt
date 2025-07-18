@@ -1,11 +1,13 @@
 package me.osku.calcu_later.ui
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.forEachGesture
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -15,29 +17,49 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 
-// 1. State holder class to manage the drawing paths using a list of points.
+// 1. State holder class to manage the drawing paths.
 class DrawingState {
-    // A list of paths, where each path is a list of points (Offsets).
-    private val _paths = mutableStateListOf<List<Offset>>()
-    val paths: List<List<Offset>> = _paths
+    // A list of paths that are completed.
+    val paths = mutableStateListOf<Path>()
+
+    // The current path being drawn, wrapped in State to trigger recomposition.
+    var currentPath by mutableStateOf<Path?>(null)
+        private set
 
     // Starts a new path at the given offset.
     fun startPath(offset: Offset) {
-        _paths.add(listOf(offset))
+        currentPath = Path().apply { moveTo(offset.x, offset.y) }
     }
 
     // Appends the next point to the current path.
+    // Creates a new Path object from the old one to ensure recomposition.
     fun appendToPath(offset: Offset) {
-        if (_paths.isNotEmpty()) {
-            val lastPath = _paths.last()
-            // Create a new list with the new point added.
-            _paths[_paths.lastIndex] = lastPath + offset
+        currentPath = currentPath?.let {
+            Path().apply {
+                addPath(it)
+                lineTo(offset.x, offset.y)
+            }
         }
+    }
+
+    // Finalizes the current path by adding it to the list of paths.
+    fun endPath() {
+        currentPath?.let { paths.add(it) }
+        currentPath = null
     }
 
     // Clears all paths from the canvas.
     fun clear() {
-        _paths.clear()
+        paths.clear()
+        currentPath = null
+    }
+
+    // Removes the last drawn path.
+    fun undo() {
+        if (paths.isNotEmpty()) {
+            paths.removeAt(paths.size - 1)
+        }
+        currentPath = null // Ensure no partial path remains after undo
     }
 }
 
@@ -53,57 +75,41 @@ fun DrawingCanvas(
     modifier: Modifier = Modifier,
     drawingState: DrawingState
 ) {
+    val stroke = Stroke(width = 5f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+
     Canvas(
         modifier = modifier
             .pointerInput(Unit) {
-                forEachGesture {
-                    awaitPointerEventScope {
-                        // Wait for a press event, without consuming it.
-                        // This allows other gestures to be detected, if needed.
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        drawingState.startPath(down.position)
-
-                        // Loop to track pointer movements
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            val change = event.changes.firstOrNull()
-
-                            if (change != null) {
-                                // If pointer is up, break the loop
-                                if (!change.pressed) {
-                                    break
-                                }
-                                // While pressed and moving, add to path
-                                drawingState.appendToPath(change.position)
-                                // Consume the change to indicate it's been handled
-                                change.consume()
-                            } else {
-                                // No change, break the loop
-                                break
-                            }
-                        }
+                detectDragGestures(
+                    onDragStart = { offset ->
+                        drawingState.startPath(offset)
+                    },
+                    onDragEnd = {
+                        drawingState.endPath()
+                    },
+                    onDragCancel = {
+                        drawingState.endPath() // Treat cancel as end of drag
                     }
+                ) { change, _ ->
+                    drawingState.appendToPath(change.position)
+                    change.consume()
                 }
             }
     ) {
-        // When the canvas is recomposed, it will redraw all the paths.
-        drawingState.paths.forEach { pathPoints ->
-            if (pathPoints.isEmpty()) return@forEach
-
-            val path = Path().apply {
-                moveTo(pathPoints.first().x, pathPoints.first().y)
-                pathPoints.forEach { point ->
-                    lineTo(point.x, point.y)
-                }
-            }
+        // Draw all the completed paths
+        drawingState.paths.forEach { path ->
             drawPath(
                 path = path,
                 color = Color.Black,
-                style = Stroke(
-                    width = 5f,
-                    cap = StrokeCap.Round,
-                    join = StrokeJoin.Round
-                )
+                style = stroke
+            )
+        }
+        // Draw the current path being drawn
+        drawingState.currentPath?.let {
+            drawPath(
+                path = it,
+                color = Color.Black,
+                style = stroke
             )
         }
     }

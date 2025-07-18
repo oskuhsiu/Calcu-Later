@@ -76,16 +76,16 @@ fun StandardHintLayout(problem: ArithmeticProblem) {
     val num1Padded = n1Str.padStart(maxLength, ' ')
     val num2Padded = n2Str.padStart(maxLength, ' ')
     val ansPadded = ansStr.padStart(maxLength, ' ')
-    val carries = calculateCarries(problem).padStart(maxLength, ' ')
+    val carries = calculateCarries(problem).padStart(maxLength, ' ').padStart(maxLength, ' ')
 
     // Use a monospace font for perfect alignment of digits
     val textStyle = MaterialTheme.typography.displayLarge.copy(
         fontFamily = FontFamily.Monospace
     )
-    val carryStyle = MaterialTheme.typography.bodyLarge.copy(
+    val carryStyle = MaterialTheme.typography.displayLarge.copy(
         fontFamily = FontFamily.Monospace,
-        color = Color.Red.copy(alpha = 0.8f),
-        fontSize = 18.sp
+        color = Color.Red.copy(alpha = 0.5f),
+//        fontSize = 18.sp
     )
 
     Column(

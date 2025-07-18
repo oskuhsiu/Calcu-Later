@@ -5,7 +5,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures // Import for detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
@@ -15,6 +17,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput // Import for pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -22,8 +26,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import me.osku.calcu_later.data.SettingsRepository
 import me.osku.calcu_later.ui.DrawingCanvas
 import me.osku.calcu_later.ui.MultiLayerHintLayout
@@ -89,11 +96,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Observe changes and save them
         snapshotFlow { digits1 }.onEach { settingsRepository.digits1 = it }.launchIn(viewModelScope)
         snapshotFlow { digits2 }.onEach { settingsRepository.digits2 = it }.launchIn(viewModelScope)
-        snapshotFlow { allowNegativeResults }.onEach { settingsRepository.allowNegativeResults = it }.launchIn(viewModelScope)
-        snapshotFlow { operationAddition }.onEach { settingsRepository.operationAddition = it }.launchIn(viewModelScope)
-        snapshotFlow { operationSubtraction }.onEach { settingsRepository.operationSubtraction = it }.launchIn(viewModelScope)
-        snapshotFlow { operationMultiplication }.onEach { settingsRepository.operationMultiplication = it }.launchIn(viewModelScope)
-        snapshotFlow { operationDivision }.onEach { settingsRepository.operationDivision = it }.launchIn(viewModelScope)
+        snapshotFlow { allowNegativeResults }.onEach {
+            settingsRepository.allowNegativeResults = it
+        }.launchIn(viewModelScope)
+        snapshotFlow { operationAddition }.onEach { settingsRepository.operationAddition = it }
+            .launchIn(viewModelScope)
+        snapshotFlow { operationSubtraction }.onEach {
+            settingsRepository.operationSubtraction = it
+        }.launchIn(viewModelScope)
+        snapshotFlow { operationMultiplication }.onEach {
+            settingsRepository.operationMultiplication = it
+        }.launchIn(viewModelScope)
+        snapshotFlow { operationDivision }.onEach { settingsRepository.operationDivision = it }
+            .launchIn(viewModelScope)
     }
 
     fun generateNewProblem() {
@@ -105,11 +120,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         hintState = when (hintState) {
             HintState.None -> HintState.ShowAnswer
             HintState.ShowAnswer -> {
-                if (problem.operator == "+") HintState.Standard else HintState.None
+                if (problem.operator == "+") HintState.MultiLayer else HintState.None
             }
 
-            HintState.Standard -> HintState.MultiLayer
-            HintState.MultiLayer -> HintState.None // Cycle back
+            HintState.Standard -> HintState.None
+            HintState.MultiLayer -> HintState.Standard // Cycle back
         }
     }
 
@@ -319,19 +334,62 @@ fun MainScreen(viewModel: MainViewModel) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            Button(onClick = {
-                viewModel.generateNewProblem()
-                // drawingState.clear() is now handled by LaunchedEffect
-            }) {
+            Button(
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    viewModel.generateNewProblem()
+                    // drawingState.clear() is now handled by LaunchedEffect
+                }) {
                 Text("新題目")
             }
-            Button(onClick = { drawingState.clear() }) {
+            var isLongPress by remember { mutableStateOf(false) }
+            var longPressJob: Job? by remember { mutableStateOf<Job?>(null) }
+            val coroutineScope = rememberCoroutineScope()
+
+            Button(
+                onClick = {
+                    if (!isLongPress) {
+                        drawingState.undo()
+                    }
+                    isLongPress = false
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                when (event.type) {
+                                    PointerEventType.Press -> {
+                                        isLongPress = false
+                                        // 啟動長按計時器
+                                        longPressJob = coroutineScope.launch {
+                                            delay(500L) // 500ms 後觸發長按
+                                            isLongPress = true
+                                            drawingState.clear()
+                                        }
+                                    }
+
+                                    PointerEventType.Release -> {
+                                        // 釋放時取消長按計時器
+                                        longPressJob?.cancel()
+//                                        longPressJob = null
+                                    }
+                                }
+                            }
+                        }
+                    }
+            ) {
                 Text("清除")
             }
-            Button(onClick = { viewModel.cycleHint() }) {
+            Button(
+                modifier = Modifier.weight(1f),
+                onClick = { viewModel.cycleHint() }) {
                 Text("提示答案")
             }
-            Button(onClick = { viewModel.showSettings() }) {
+            Button(
+                modifier = Modifier.weight(1f),
+                onClick = { viewModel.showSettings() }) {
                 Text("設定")
             }
         }
