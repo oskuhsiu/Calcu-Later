@@ -303,92 +303,100 @@ fun MainScreen(viewModel: MainViewModel) {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Problem display
-        Column(
-            modifier = Modifier
-                .fillMaxWidth(0.5f) // Shrink width and height
-                .padding(vertical = 4.dp),
-            horizontalAlignment = Alignment.End
-        ) {
-            Text(text = "${problem.number1}", style = problemTextStyle)
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = "${problem.operator} ${problem.number2}",
-                style = problemTextStyle
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Divider(
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
-                thickness = 2.dp
-            )
-
-            // Show final answer transparently when hint is active
-            if (viewModel.showAnswer) {
-                Text(
-                    text = "${problem.answer}",
-                    style = problemTextStyle.copy(
-                        color = MaterialTheme.colorScheme.onSurface.copy(
-                            alpha = 0.4f
-                        )
-                    ),
-                    textAlign = TextAlign.End,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            } else {
-                // Add a spacer to keep layout consistent when answer is not shown
-                Spacer(modifier = Modifier.height(problemTextStyle.fontSize.value.dp + 4.dp))
-            }
-        }
-
-        // Drawing area with hint overlay
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(vertical = 16.dp)
-                .clip(RoundedCornerShape(16.dp)) // Clip content to rounded shape
-                .border(
-                    2.dp,
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                    RoundedCornerShape(16.dp)
-                )
         ) {
+            // Full screen drawing canvas
             DrawingCanvas(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxSize(),
                 drawingState = drawingState
             )
 
-            // Show hint layouts
-            when(viewModel.hintState) {
-                HintState.Standard -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (problem.operator == "+") {
-                            StandardHintLayout(problem = problem)
-                        } else if (problem.operator == "-") {
-                            SubtractionHintLayout(problem = problem)
+            // Content layer
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Problem display
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth(0.5f)
+                        .padding(vertical = 4.dp),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Text(text = "${problem.number1}", style = problemTextStyle)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "${problem.operator} ${problem.number2}",
+                        style = problemTextStyle
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Divider(
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                        thickness = 2.dp
+                    )
+
+                    if (viewModel.showAnswer) {
+                        Text(
+                            text = "${problem.answer}",
+                            style = problemTextStyle.copy(
+                                color = MaterialTheme.colorScheme.onSurface.copy(
+                                    alpha = 0.4f
+                                )
+                            ),
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(problemTextStyle.fontSize.value.dp + 4.dp))
+                    }
+                }
+
+                // Drawing frame (without background)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(vertical = 16.dp)
+                        .border(
+                            2.dp,
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                            RoundedCornerShape(16.dp)
+                        )
+                ) {
+                    // Show hint layouts
+                    when(viewModel.hintState) {
+                        HintState.Standard -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (problem.operator == "+") {
+                                    StandardHintLayout(problem = problem)
+                                } else if (problem.operator == "-") {
+                                    SubtractionHintLayout(problem = problem)
+                                }
+                            }
                         }
+                        HintState.MultiLayer -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (problem.operator == "+") {
+                                    MultiLayerHintLayout(problem = problem)
+                                }
+                            }
+                        }
+                        else -> {}
                     }
                 }
-                HintState.MultiLayer -> {
-                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                         if (problem.operator == "+") {
-                             MultiLayerHintLayout(problem = problem)
-                         }
-                    }
-                }
-                else -> {}
             }
         }
 
