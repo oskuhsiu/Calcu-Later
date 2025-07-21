@@ -45,6 +45,7 @@ import me.osku.calcu_later.ui.DrawingCanvas
 import me.osku.calcu_later.ui.MultiLayerHintLayout
 import me.osku.calcu_later.ui.SettingsScreen
 import me.osku.calcu_later.ui.StandardHintLayout
+import me.osku.calcu_later.ui.SubtractionHintLayout
 import me.osku.calcu_later.ui.rememberDrawingState
 import me.osku.calcu_later.ui.theme.CalcuLaterTheme
 import kotlin.math.pow
@@ -129,7 +130,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         hintState = when (hintState) {
             HintState.None -> HintState.ShowAnswer
             HintState.ShowAnswer -> {
-                if (problem.operator == "+") HintState.MultiLayer else HintState.None
+                if (problem.operator == "+") HintState.MultiLayer else HintState.Standard
             }
 
             HintState.Standard -> HintState.None
@@ -358,28 +359,36 @@ fun MainScreen(viewModel: MainViewModel) {
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
                 drawingState = drawingState
             )
-            // Show Standard Hint Layout as an overlay only for addition problems
-            if (viewModel.problem.operator == "+") {
-                if (viewModel.hintState == HintState.Standard) {
+
+            // Show hint layouts
+            when(viewModel.hintState) {
+                HintState.Standard -> {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(16.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        StandardHintLayout(problem = problem)
+                        if (problem.operator == "+") {
+                            StandardHintLayout(problem = problem)
+                        } else if (problem.operator == "-") {
+                            SubtractionHintLayout(problem = problem)
+                        }
                     }
                 }
-                if (viewModel.hintState == HintState.MultiLayer) {
-                    Box(
+                HintState.MultiLayer -> {
+                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(16.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        MultiLayerHintLayout(problem = problem)
+                         if (problem.operator == "+") {
+                             MultiLayerHintLayout(problem = problem)
+                         }
                     }
                 }
+                else -> {}
             }
         }
 
@@ -431,7 +440,7 @@ fun MainScreen(viewModel: MainViewModel) {
                                     PointerEventType.Release -> {
                                         longPressJob?.cancel()
                                     }
-                                }
+                                 }
                             }
                         }
                     }

@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.osku.calcu_later.ArithmeticProblem
@@ -69,6 +70,64 @@ private fun calculateCarries(problem: ArithmeticProblem): String {
     return if (finalResult.isBlank()) "" else finalResult
 }
 
+private data class BorrowInfo(
+    val original: Char,
+    val afterLending: Char? = null,
+    val afterBorrowing: String? = null,
+    val lendingColorIndex: Int? = null,
+    val borrowingColorIndex: Int? = null
+)
+
+private fun calculateBorrowInfo(problem: ArithmeticProblem): Array<BorrowInfo> {
+    if (problem.operator != "-") return emptyArray()
+
+    val n1Str = problem.number1.toString()
+    val n2Str = problem.number2.toString()
+    val maxLength = maxOf(n1Str.length, n2Str.length)
+    val num1Padded = n1Str.padStart(maxLength, '0')
+    val num2Padded = n2Str.padStart(maxLength, '0')
+
+    val info = num1Padded.map { BorrowInfo(original = it) }.toTypedArray()
+    val effectiveDigits = num1Padded.map { it.digitToInt() }.toMutableList()
+    var borrowEventCount = 0
+
+    for (i in maxLength - 1 downTo 0) {
+        if (effectiveDigits[i] < num2Padded[i].digitToInt()) {
+            val colorIndex = borrowEventCount % 5 // 5 is the number of placeColors
+            // Position 'i' needs to borrow.
+            info[i] = info[i].copy(
+                afterBorrowing = (effectiveDigits[i] + 10).toString(),
+                borrowingColorIndex = colorIndex
+            )
+            effectiveDigits[i] += 10
+
+            // Find a lender to the left.
+            var j = i - 1
+            while (j >= 0) {
+                val lenderOriginalEffectiveValue = effectiveDigits[j]
+                effectiveDigits[j]--
+
+                info[j] = info[j].copy(
+                    afterLending = (lenderOriginalEffectiveValue - 1).digitToChar(),
+                    lendingColorIndex = info[j].lendingColorIndex ?: colorIndex
+                )
+
+                if (lenderOriginalEffectiveValue > 0) {
+                    break // Lender found, stop.
+                }
+                // Lender was a 0, it becomes 9 and continues the borrow.
+                info[j] = info[j].copy(
+                    afterLending = '9',
+                    lendingColorIndex = info[j].lendingColorIndex ?: colorIndex
+                )
+                j--
+            }
+            borrowEventCount++
+        }
+    }
+    return info
+}
+
 
 @Composable
 fun StandardHintLayout(problem: ArithmeticProblem) {
@@ -117,7 +176,8 @@ fun StandardHintLayout(problem: ArithmeticProblem) {
                     if (digit != ' ') {
                         // 进位符号使用前一个位置的颜色（即右边一位的颜色）
                         // 因为它是由右边位置的数字相加产生的
-                        val colorIndex = (maxLength - (index + 1) - 1).coerceAtLeast(0) % placeColors.size
+                        val colorIndex =
+                            (maxLength - (index + 1) - 1).coerceAtLeast(0) % placeColors.size
                         Text(
                             text = digit.toString(),
                             style = textStyle.copy(color = placeColors[colorIndex].copy(alpha = 0.7f)),
@@ -201,6 +261,127 @@ fun StandardHintLayout(problem: ArithmeticProblem) {
         Text(text = ansPadded, style = textStyle)
     }
 }
+
+@Composable
+fun SubtractionHintLayout(problem: ArithmeticProblem) {
+    if (problem.operator != "-") return
+
+    val n1Str = problem.number1.toString()
+    val n2Str = problem.number2.toString()
+    val ansStr = problem.answer.toString()
+    val maxLength = maxOf(n1Str.length, n2Str.length, ansStr.length)
+
+    val num1Padded = n1Str.padStart(maxLength, ' ')
+    val num2Padded = n2Str.padStart(maxLength, ' ')
+    val ansPadded = ansStr.padStart(maxLength, ' ')
+    val borrowInfo = calculateBorrowInfo(problem)
+
+    val textStyle = MaterialTheme.typography.displayLarge.copy(fontFamily = FontFamily.Monospace)
+    val smallTextStyle =
+        MaterialTheme.typography.headlineSmall.copy(fontFamily = FontFamily.Monospace)
+
+    val placeColors = listOf(
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.tertiary,
+        ToyOrange,
+        ToyPink
+    )
+
+    Column(
+        horizontalAlignment = Alignment.End,
+        modifier = Modifier.padding(end = 32.dp)
+    ) {
+        // First number (minuend) with borrow visualization
+        Row {
+            borrowInfo.forEach { info ->
+                if (info != null) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        // Top: Value after it borrowed (e.g., "13")
+                        if (info.afterBorrowing != null) {
+                            val color =
+                                if (info.borrowingColorIndex != null) placeColors[info.borrowingColorIndex] else MaterialTheme.colorScheme.secondary
+                            Text(
+                                text = info.afterBorrowing,
+                                style = smallTextStyle.copy(color = color)
+                            )
+                        } else {
+                            Text(" ", style = smallTextStyle)
+                        }
+
+                        // Middle: Value after it lent (e.g., "3"), with strikethrough if it also borrowed
+                        if (info.afterLending != null) {
+                            val color =
+                                if (info.lendingColorIndex != null) placeColors[info.lendingColorIndex] else MaterialTheme.colorScheme.secondary
+                            Text(
+                                text = info.afterLending.toString(),
+                                style = smallTextStyle.copy(
+                                    color = color.copy(alpha = 0.7f),
+                                    textDecoration = if (info.afterBorrowing != null) TextDecoration.LineThrough else null
+                                )
+                            )
+                        } else {
+                            Text(" ", style = smallTextStyle)
+                        }
+
+
+                        // Bottom: Original value, with strikethrough if it changed at all
+                        val hasChanged = info.afterLending != null || info.afterBorrowing != null
+                        Text(
+                            text = info.original.toString(),
+                            style = if (hasChanged) {
+                                textStyle.copy(
+                                    color = textStyle.color.copy(alpha = 0.5f),
+                                    textDecoration = TextDecoration.LineThrough
+                                )
+                            } else {
+                                textStyle
+                            },
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    }
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(" ", style = smallTextStyle)
+                        Text(" ", style = smallTextStyle)
+                        Text(" ", style = textStyle, modifier = Modifier.padding(horizontal = 4.dp))
+                    }
+                }
+            }
+        }
+
+        // Operator and second number
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = "${problem.operator} ", style = textStyle)
+            num2Padded.forEach { digit ->
+                Text(
+                    text = digit.toString(),
+                    style = textStyle,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+            }
+        }
+
+        // Divider
+        Divider(
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+            thickness = 2.dp,
+            modifier = Modifier.padding(top = 8.dp)
+        )
+
+        // Answer
+        Row {
+            ansPadded.forEach { digit ->
+                Text(
+                    text = digit.toString(),
+                    style = textStyle,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+            }
+        }
+    }
+}
+
 
 @Composable
 fun MultiLayerHintLayout(problem: ArithmeticProblem) {
