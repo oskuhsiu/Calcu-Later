@@ -1,10 +1,14 @@
 package me.osku.calcu_later.ui
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -12,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -62,6 +67,13 @@ private fun calculateCarries(problem: ArithmeticProblem): String {
     return if (finalResult.isBlank()) "" else finalResult
 }
 
+// 添加颜色映射
+private val placeColors = listOf(
+    Color(0xFFFF0000), // 个位数红色
+    Color(0xFF0000FF),  // 十位数蓝色
+    Color(0xFFFF922B), // 百位数橙色
+    Color(0xFF51CF66) // 千位数绿色
+)
 
 @Composable
 fun StandardHintLayout(problem: ArithmeticProblem) {
@@ -150,13 +162,41 @@ fun MultiLayerHintLayout(problem: ArithmeticProblem) {
         modifier = Modifier.padding(end = 16.dp)
     ) {
         // 1. First number
-        Text(text = n1Str.padStart(totalLength), style = textStyle)
+        Row {
+            val n1Parts = n1Str.padStart(totalLength).chunked(1)
+            n1Parts.forEachIndexed { index, digit ->
+                if (digit.trim().isNotEmpty()) {
+                    val colorIndex = (totalLength - index - 1).coerceAtLeast(0) % placeColors.size
+                    DigitBox(
+                        text = digit,
+                        color = placeColors[colorIndex],
+                        textStyle = textStyle
+                    )
+                } else {
+                    Text(text = digit, style = textStyle)
+                }
+            }
+        }
 
         // 2. Operator and second number
         Row {
             Text(text = problem.operator, style = textStyle)
-            Text(text = " ", style = textStyle) // Spacer
-            Text(text = n2Str.padStart(totalLength - 2), style = textStyle)
+            Text(text = " ", style = textStyle)
+            val n2Parts = n2Str.padStart(totalLength - 2).chunked(1)
+            n2Parts.forEachIndexed { index, digit ->
+                if (digit.trim().isNotEmpty()) {
+                    // 计算实际的位数索引（从右往左数）
+                    val digitPosition = (n2Parts.size - index - 1)
+                    val colorIndex = digitPosition.coerceAtLeast(0) % placeColors.size
+                    DigitBox(
+                        text = digit,
+                        color = placeColors[colorIndex],
+                        textStyle = textStyle
+                    )
+                } else {
+                    Text(text = digit, style = textStyle)
+                }
+            }
         }
 
         // 3. First Divider
@@ -179,14 +219,63 @@ fun MultiLayerHintLayout(problem: ArithmeticProblem) {
                 partialSums.add(partialSumStr.padStart(totalLength))
             }
         }
-        partialSums.forEach {
-            Text(text = it, style = textStyle)
+        partialSums.forEachIndexed { index, sum ->
+            Row {
+                val sumParts = sum.chunked(1)
+                sumParts.forEach { digit ->
+                    if (digit.trim().isNotEmpty()) {
+                        DigitBox(
+                            text = digit,
+                            color = placeColors[index],
+                            textStyle = textStyle,
+                        )
+                    } else {
+//                        Text(text = digit, style = textStyle)
+                        DigitBox(
+                            text = digit,
+                            color = Color(0x00000000), // Transparent for empty spaces
+                            textStyle = textStyle,
+                        )
+                    }
+                }
+            }
         }
 
         // 5. Second Divider
         Divider(color = Color.Black, thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
 
         // 6. Final Answer
-        Text(text = ansStr.padStart(totalLength), style = textStyle)
+        Row {
+            val ansParts = ansStr.padStart(totalLength).chunked(1)
+            ansParts.forEachIndexed { index, digit ->
+                if (digit.trim().isNotEmpty()) {
+                    val colorIndex = (totalLength - index - 1).coerceAtLeast(0) % placeColors.size
+                    DigitBox(
+                        text = digit,
+                        color = Color(0x00000000), // Transparent for empty spaces
+                        //color = placeColors[colorIndex],
+                        textStyle = textStyle
+                    )
+                } else {
+                    Text(text = digit, style = textStyle)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DigitBox(
+    text: String,
+    color: Color,
+    textStyle: TextStyle,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .border(2.dp, color, RoundedCornerShape(4.dp))
+            .padding(4.dp)
+    ) {
+        Text(text = text, style = textStyle)
     }
 }
