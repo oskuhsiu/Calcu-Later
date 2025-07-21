@@ -16,23 +16,6 @@
 - **簡潔的全螢幕介面**: 採用沉浸式設計，隱藏系統狀態列和導覽列，讓使用者能更專注於解題。
 - **個人化設定**: 所有設定（如數字位數、運算類型）都會自動儲存，方便下次使用。
 
-## 📸 應用程式截圖
-
-<table>
-  <tr>
-    <td><img src="https://i.imgur.com/your_screenshot_1.png" alt="主畫面" width="250"/></td>
-    <td><img src="https://i.imgur.com/your_screenshot_2.png" alt="分層提示" width="250"/></td>
-    <td><img src="https://i.imgur.com/your_screenshot_3.png" alt="設定畫面" width="250"/></td>
-  </tr>
-  <tr align="center">
-    <td>主畫面</td>
-    <td>分層提示</td>
-    <td>設定畫面</td>
-  </tr>
-</table>
-
-*(請將上面的 `https://i.imgur.com/...` 連結替換為您自己的截圖 URL)*
-
 ## 🚀 如何使用
 
 1.  開啟應用程式，一道隨機產生的題目將會顯示在畫面上方。
