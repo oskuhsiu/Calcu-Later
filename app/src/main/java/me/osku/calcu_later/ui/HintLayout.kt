@@ -22,6 +22,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.osku.calcu_later.ArithmeticProblem
+import me.osku.calcu_later.ui.theme.ToyOrange
+import me.osku.calcu_later.ui.theme.ToyPink
 import kotlin.math.pow
 
 /**
@@ -67,67 +69,135 @@ private fun calculateCarries(problem: ArithmeticProblem): String {
     return if (finalResult.isBlank()) "" else finalResult
 }
 
-// 添加颜色映射
-private val placeColors = listOf(
-    Color(0xFFFF0000), // 个位数红色
-    Color(0xFF0000FF),  // 十位数蓝色
-    Color(0xFFFF922B), // 百位数橙色
-    Color(0xFF51CF66) // 千位数绿色
-)
 
 @Composable
 fun StandardHintLayout(problem: ArithmeticProblem) {
     val n1Str = problem.number1.toString()
     val n2Str = problem.number2.toString()
     val ansStr = problem.answer.toString()
-
-    // Determine the max width needed for alignment, including the operator
     val maxLength = maxOf(n1Str.length, n2Str.length, ansStr.length)
 
-    // Pad each string with leading spaces to align them to the right
     val num1Padded = n1Str.padStart(maxLength, ' ')
     val num2Padded = n2Str.padStart(maxLength, ' ')
     val ansPadded = ansStr.padStart(maxLength, ' ')
-    val carries = calculateCarries(problem).padStart(maxLength, ' ').padStart(maxLength, ' ')
+    val carries = calculateCarries(problem).padStart(maxLength, ' ')
 
-    // Use a monospace font for perfect alignment of digits
+    // Use theme colors for place values, making it more vibrant
+    val placeColors = listOf(
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.tertiary,
+        ToyOrange,
+        ToyPink
+    )
+
+    // 计算每个位置是否需要进位
+    val carryPositions = mutableListOf<Boolean>()
+    var prevCarry = 0
+    for (i in maxLength - 1 downTo 0) {
+        val d1 = if (i < num1Padded.length) num1Padded[i].toString().toIntOrNull() ?: 0 else 0
+        val d2 = if (i < num2Padded.length) num2Padded[i].toString().toIntOrNull() ?: 0 else 0
+        val sum = d1 + d2 + prevCarry
+        carryPositions.add(0, sum >= 10)
+        prevCarry = sum / 10
+    }
+
     val textStyle = MaterialTheme.typography.displayLarge.copy(
         fontFamily = FontFamily.Monospace
-    )
-    val carryStyle = MaterialTheme.typography.displayLarge.copy(
-        fontFamily = FontFamily.Monospace,
-        color = Color.Red.copy(alpha = 0.5f),
-//        fontSize = 18.sp
     )
 
     Column(
         horizontalAlignment = Alignment.End,
         modifier = Modifier.padding(end = 32.dp)
     ) {
-        // 1. Carry row (only for addition)
+        // Carry row
         if (carries.isNotBlank()) {
-            Text(
-                text = carries,
-                style = carryStyle,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
+            Row {
+                carries.forEachIndexed { index, digit ->
+                    if (digit != ' ') {
+                        // 进位符号使用前一个位置的颜色（即右边一位的颜色）
+                        // 因为它是由右边位置的数字相加产生的
+                        val colorIndex = (maxLength - (index + 1) - 1).coerceAtLeast(0) % placeColors.size
+                        Text(
+                            text = digit.toString(),
+                            style = textStyle.copy(color = placeColors[colorIndex].copy(alpha = 0.7f)),
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    } else {
+                        Text(text = " ", style = textStyle)
+                    }
+                }
+            }
         }
 
-        // 2. First number
-        Text(text = num1Padded, style = textStyle)
+        // First number
+        Row {
+            num1Padded.forEachIndexed { index, digit ->
+                if (digit != ' ') {
+                    val colorIndex = (maxLength - index - 1).coerceAtLeast(0) % placeColors.size
+                    if (index < carryPositions.size && carryPositions[index]) {
+                        Box(
+                            modifier = Modifier
+                                .border(
+                                    BorderStroke(2.dp, placeColors[colorIndex]),
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .padding(4.dp)
+                        ) {
+                            Text(text = digit.toString(), style = textStyle)
+                        }
+                    } else {
+                        Text(
+                            text = digit.toString(),
+                            style = textStyle,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    }
+                } else {
+                    Text(text = " ", style = textStyle)
+                }
+            }
+        }
 
-        // 3. Operator and second number
+        // Operator and second number
         Row {
             Text(text = problem.operator, style = textStyle)
-            // Add a spacer for visual separation
             Text(text = " ", style = textStyle)
-            Text(text = num2Padded, style = textStyle)
+            num2Padded.forEachIndexed { index, digit ->
+                if (digit != ' ') {
+                    val colorIndex = (maxLength - index - 1).coerceAtLeast(0) % placeColors.size
+                    if (index < carryPositions.size && carryPositions[index]) {
+                        Box(
+                            modifier = Modifier
+                                .border(
+                                    BorderStroke(2.dp, placeColors[colorIndex]),
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .padding(4.dp)
+                        ) {
+                            Text(text = digit.toString(), style = textStyle)
+                        }
+                    } else {
+                        Text(
+                            text = digit.toString(),
+                            style = textStyle,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    }
+                } else {
+                    Text(text = " ", style = textStyle)
+                }
+            }
         }
 
-        // 4. Divider
-        Divider(color = Color.Black, thickness = 2.dp, modifier = Modifier.padding(top = 8.dp))
+        // Divider
+        Divider(
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+            thickness = 2.dp,
+            modifier = Modifier.padding(top = 8.dp)
+        )
 
-        // 5. Answer
+        // Answer
         Text(text = ansPadded, style = textStyle)
     }
 }
@@ -154,6 +224,15 @@ fun MultiLayerHintLayout(problem: ArithmeticProblem) {
     // Use a monospace font for perfect alignment of digits
     val textStyle = MaterialTheme.typography.headlineMedium.copy(
         fontFamily = FontFamily.Monospace
+    )
+
+    // Use theme colors for place values
+    val placeColors = listOf(
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.tertiary,
+        ToyOrange,
+        ToyPink
     )
 
     Column(
@@ -200,7 +279,11 @@ fun MultiLayerHintLayout(problem: ArithmeticProblem) {
         }
 
         // 3. First Divider
-        Divider(color = Color.Black, thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
+        Divider(
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+            thickness = 1.dp,
+            modifier = Modifier.padding(vertical = 4.dp)
+        )
 
         // 4. Partial Sums
         val partialSums = mutableListOf<String>()
@@ -242,7 +325,11 @@ fun MultiLayerHintLayout(problem: ArithmeticProblem) {
         }
 
         // 5. Second Divider
-        Divider(color = Color.Black, thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
+        Divider(
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+            thickness = 1.dp,
+            modifier = Modifier.padding(vertical = 4.dp)
+        )
 
         // 6. Final Answer
         Row {

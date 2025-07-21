@@ -10,10 +10,12 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures // Import for detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -21,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput // Import for pointerInput
@@ -282,6 +285,11 @@ class MainActivity : ComponentActivity() {
 fun MainScreen(viewModel: MainViewModel) {
     val problem = viewModel.problem
     val drawingState = rememberDrawingState()
+    val buttonShape = RoundedCornerShape(12.dp)
+    val problemTextStyle = MaterialTheme.typography.displayLarge.copy(
+        fontSize = MaterialTheme.typography.displayLarge.fontSize * 0.8f
+    )
+
 
     // When a new problem is generated, clear the canvas
     LaunchedEffect(problem) {
@@ -296,21 +304,28 @@ fun MainScreen(viewModel: MainViewModel) {
     ) {
         // Problem display
         Column(
-            modifier = Modifier.fillMaxWidth(0.6f), // Widen slightly for bigger numbers
+            modifier = Modifier
+                .fillMaxWidth(0.5f) // Shrink width and height
+                .padding(vertical = 4.dp),
             horizontalAlignment = Alignment.End
         ) {
-            Text(text = "${problem.number1}", style = MaterialTheme.typography.displayLarge)
+            Text(text = "${problem.number1}", style = problemTextStyle)
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = "${problem.operator} ${problem.number2}",
-                style = MaterialTheme.typography.displayLarge
+                style = problemTextStyle
             )
-            Divider(color = Color.Black, thickness = 2.dp, modifier = Modifier.padding(top = 8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
+            Divider(
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                thickness = 2.dp
+            )
 
             // Show final answer transparently when hint is active
             if (viewModel.showAnswer) {
                 Text(
                     text = "${problem.answer}",
-                    style = MaterialTheme.typography.displayLarge.copy(
+                    style = problemTextStyle.copy(
                         color = MaterialTheme.colorScheme.onSurface.copy(
                             alpha = 0.4f
                         )
@@ -320,7 +335,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 )
             } else {
                 // Add a spacer to keep layout consistent when answer is not shown
-                Spacer(modifier = Modifier.height(MaterialTheme.typography.displayLarge.fontSize.value.dp))
+                Spacer(modifier = Modifier.height(problemTextStyle.fontSize.value.dp + 4.dp))
             }
         }
 
@@ -330,11 +345,17 @@ fun MainScreen(viewModel: MainViewModel) {
                 .fillMaxWidth()
                 .weight(1f)
                 .padding(vertical = 16.dp)
+                .clip(RoundedCornerShape(16.dp)) // Clip content to rounded shape
+                .border(
+                    2.dp,
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                    RoundedCornerShape(16.dp)
+                )
         ) {
             DrawingCanvas(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.LightGray.copy(alpha = 0.3f)),
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
                 drawingState = drawingState
             )
             // Show Standard Hint Layout as an overlay only for addition problems
@@ -364,30 +385,36 @@ fun MainScreen(viewModel: MainViewModel) {
 
         // Action buttons
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
         ) {
+            // New Problem Button
             Button(
-                modifier = Modifier.weight(1f),
-                onClick = {
-                    viewModel.generateNewProblem()
-                    // drawingState.clear() is now handled by LaunchedEffect
-                }) {
-                Text("新題目")
+                onClick = { viewModel.generateNewProblem() },
+                shape = buttonShape,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(50.dp)
+            ) {
+                Text("新題")
             }
+
+            // Undo/Clear Button
             var isLongPress by remember { mutableStateOf(false) }
             var longPressJob: Job? by remember { mutableStateOf<Job?>(null) }
             val coroutineScope = rememberCoroutineScope()
-
             Button(
                 onClick = {
-                    if (!isLongPress) {
-                        drawingState.undo()
-                    }
+                    if (!isLongPress) drawingState.undo()
                     isLongPress = false
                 },
+                shape = buttonShape,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
                 modifier = Modifier
                     .weight(1f)
+                    .height(50.dp)
                     .pointerInput(Unit) {
                         awaitPointerEventScope {
                             while (true) {
@@ -395,18 +422,14 @@ fun MainScreen(viewModel: MainViewModel) {
                                 when (event.type) {
                                     PointerEventType.Press -> {
                                         isLongPress = false
-                                        // 啟動長按計時器
                                         longPressJob = coroutineScope.launch {
-                                            delay(500L) // 500ms 後觸發長按
+                                            delay(500L)
                                             isLongPress = true
                                             drawingState.clear()
                                         }
                                     }
-
                                     PointerEventType.Release -> {
-                                        // 釋放時取消長按計時器
                                         longPressJob?.cancel()
-//                                        longPressJob = null
                                     }
                                 }
                             }
@@ -415,19 +438,32 @@ fun MainScreen(viewModel: MainViewModel) {
             ) {
                 Text("清除")
             }
+
+            // Hint Button
             Button(
-                modifier = Modifier.weight(1f),
-                onClick = { viewModel.cycleHint() }) {
-                Text("提示答案")
+                onClick = { viewModel.cycleHint() },
+                shape = buttonShape,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(50.dp)
+            ) {
+                Text("提示")
             }
+
+            // Settings Button
             Button(
-                modifier = Modifier.weight(1f),
-                onClick = { viewModel.showSettings() }) {
+                onClick = { viewModel.showSettings() },
+                shape = buttonShape,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(50.dp)
+            ) {
                 Text("設定")
             }
         }
     }
 }
+
 
 @Preview(showBackground = true)
 @Composable
