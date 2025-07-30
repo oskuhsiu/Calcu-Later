@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- 筆的主體 -->
+    <path
+        android:fillColor="#FF5722"
+        android:pathData="M20.5,3.5L15,9L17,11L22.5,5.5C22.8,5.2 22.8,4.8 22.5,4.5L19.5,1.5C19.2,1.2 18.8,1.2 18.5,1.5L20.5,3.5Z" />
+
+    <!-- 筆尖 -->
+    <path
+        android:fillColor="#333333"
+        android:pathData="M14,10L13,11L16,14L17,13L14,10Z" />
+
+    <!-- 數學題目背景紙張 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:strokeColor="#E0E0E0"
+        android:strokeWidth="1"
+        android:pathData="M2,6L12,6L12,22L2,22L2,6Z" />
+
+    <!-- 數學符號：2 -->
+    <path
+        android:fillColor="#333333"
+        android:pathData="M3.5,8.5L6.5,8.5C6.8,8.5 7,8.7 7,9C7,9.3 6.8,9.5 6.5,9.5L4.5,9.5L4.5,10L6.5,10C6.8,10 7,10.2 7,10.5C7,10.8 6.8,11 6.5,11L3.5,11C3.2,11 3,10.8 3,10.5L3,9C3,8.7 3.2,8.5 3.5,8.5Z" />
+
+    <!-- 數學符號：+ -->
+    <path
+        android:fillColor="#333333"
+        android:pathData="M8.5,8.5L8.5,11.5M7,10L10,10"
+        android:strokeColor="#333333"
+        android:strokeWidth="0.8"
+        android:strokeLineCap="round" />
+
+    <!-- 數學符號：3 -->
+    <path
+        android:fillColor="#333333"
+        android:pathData="M3.5,13L6.5,13C6.8,13 7,13.2 7,13.5C7,13.8 6.8,14 6.5,14L5,14L6.5,14.5C6.8,14.6 7,14.8 7,15.1C7,15.4 6.8,15.6 6.5,15.6L3.5,15.6C3.2,15.6 3,15.4 3,15.1C3,14.8 3.2,14.6 3.5,14.6L5,14.6L3.5,14.1C3.2,14 3,13.8 3,13.5C3,13.2 3.2,13 3.5,13Z" />
+
+    <!-- 數學符號：= -->
+    <path
+        android:fillColor="#333333"
+        android:pathData="M8,13.2L10,13.2M8,14.8L10,14.8"
+        android:strokeColor="#333333"
+        android:strokeWidth="0.6"
+        android:strokeLineCap="round" />
+
+    <!-- 數學符號：5 -->
+    <path
+        android:fillColor="#333333"
+        android:pathData="M3.5,17L6.5,17C6.8,17 7,17.2 7,17.5L7,18.5C7,18.8 6.8,19 6.5,19L4.5,19L4.5,19.5L6.5,19.5C6.8,19.5 7,19.7 7,20C7,20.3 6.8,20.5 6.5,20.5L3.5,20.5C3.2,20.5 3,20.3 3,20L3,17.5C3,17.2 3.2,17 3.5,17Z" />
+
+    <!-- 筆跡線條 -->
+    <path
+        android:strokeColor="#2196F3"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M8.5,17.5L10.5,19.5"
+        android:fillColor="#00000000" />
+
+    <!-- 鉛筆的橡皮擦部分 -->
+    <path
+        android:fillColor="#E91E63"
+        android:pathData="M21.5,2.5L23,4L21.5,5.5L20,4L21.5,2.5Z" />
+
+</vector>
+
