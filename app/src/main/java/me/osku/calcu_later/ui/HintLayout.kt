@@ -1,6 +1,13 @@
 package me.osku.calcu_later.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,6 +20,11 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,6 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import me.osku.calcu_later.ArithmeticProblem
 import me.osku.calcu_later.ui.theme.ToyOrange
 import me.osku.calcu_later.ui.theme.ToyPink
@@ -529,6 +542,480 @@ fun MultiLayerHintLayout(problem: ArithmeticProblem) {
                 }
             }
         }
+    }
+}
+
+@Composable
+fun AnimatedAdditionHintLayout(problem: ArithmeticProblem) {
+    if (problem.operator != "+") return
+
+    val n1Str = problem.number1.toString()
+    val n2Str = problem.number2.toString()
+    val ansStr = problem.answer.toString()
+    val maxLength = maxOf(n1Str.length, n2Str.length)
+    val totalLength = ansStr.length + 2 // +2 for operator and space
+
+    // Animation step state: 0 = show problem, 1+ = highlight each place value step by step
+    var animationStep by remember { mutableIntStateOf(0) }
+
+    // Use a monospace font for perfect alignment of digits
+    val textStyle = MaterialTheme.typography.headlineMedium.copy(
+        fontFamily = FontFamily.Monospace
+    )
+
+    // Use theme colors for place values
+    val placeColors = listOf(
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.tertiary,
+        ToyOrange,
+        ToyPink
+    )
+
+    // Calculate partial sums for each place value
+    val partialSums = mutableListOf<Pair<String, Int>>() // (sumStr, placeIndex)
+    val num1Padded = n1Str.padStart(maxLength, '0')
+    val num2Padded = n2Str.padStart(maxLength, '0')
+
+    for (i in 0 until maxLength) {
+        val place = maxLength - 1 - i
+        val digit1 = num1Padded[place].digitToInt()
+        val digit2 = num2Padded[place].digitToInt()
+        val sum = digit1 + digit2
+
+        if (sum > 0) {
+            // Create the partial sum string with correct place value (add trailing zeros)
+            val zerosToAdd = "0".repeat(i)
+            val partialSumStr = sum.toString() + zerosToAdd
+            partialSums.add(partialSumStr.padStart(totalLength) to i)
+        }
+    }
+
+    Column(
+        horizontalAlignment = Alignment.End,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.padding(end = 16.dp)
+    ) {
+        // 1. First number with highlighting
+        Row {
+            val n1Parts = n1Str.padStart(totalLength).chunked(1)
+            n1Parts.forEachIndexed { index, digit ->
+                if (digit.trim().isNotEmpty()) {
+                    val digitPosition = (totalLength - index - 1).coerceAtLeast(0)
+                    val colorIndex = digitPosition % placeColors.size
+                    val isHighlighted = animationStep > 0 && digitPosition == (animationStep - 1)
+
+                    AnimatedDigitBox(
+                        text = digit,
+                        color = placeColors[colorIndex],
+                        textStyle = textStyle,
+                        isHighlighted = isHighlighted
+                    )
+                } else {
+                    Text(text = digit, style = textStyle)
+                }
+            }
+        }
+
+        // 2. Operator and second number with highlighting
+        Row {
+            Text(text = problem.operator, style = textStyle)
+            Text(text = " ", style = textStyle)
+            val n2Parts = n2Str.padStart(totalLength - 2).chunked(1)
+            n2Parts.forEachIndexed { index, digit ->
+                if (digit.trim().isNotEmpty()) {
+                    val digitPosition = (n2Parts.size - index - 1).coerceAtLeast(0)
+                    val colorIndex = digitPosition % placeColors.size
+                    val isHighlighted = animationStep > 0 && digitPosition == (animationStep - 1)
+
+                    AnimatedDigitBox(
+                        text = digit,
+                        color = placeColors[colorIndex],
+                        textStyle = textStyle,
+                        isHighlighted = isHighlighted
+                    )
+                } else {
+                    Text(text = digit, style = textStyle)
+                }
+            }
+        }
+
+        // 3. First Divider
+        Divider(
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+            thickness = 1.dp,
+            modifier = Modifier.padding(vertical = 4.dp)
+        )
+
+        // 4. Partial Sums with Animation
+        partialSums.forEachIndexed { index, (sum, placeIndex) ->
+            AnimatedVisibility(
+                visible = animationStep > placeIndex + 1,
+                enter = fadeIn(animationSpec = tween(500)) + scaleIn(animationSpec = tween(500))
+            ) {
+                Row {
+                    val sumParts = sum.chunked(1)
+                    sumParts.forEach { digit ->
+                        if (digit.trim().isNotEmpty()) {
+                            DigitBox(
+                                text = digit,
+                                color = placeColors[placeIndex],
+                                textStyle = textStyle
+                            )
+                        } else {
+                            DigitBox(
+                                text = digit,
+                                color = Color(0x00000000), // Transparent for empty spaces
+                                textStyle = textStyle,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5. Second Divider
+        AnimatedVisibility(
+            visible = animationStep > maxLength + 1,
+            enter = fadeIn(animationSpec = tween(300))
+        ) {
+            Divider(
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                thickness = 1.dp,
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+        }
+
+        // 6. Final Answer
+        AnimatedVisibility(
+            visible = animationStep > maxLength + 2,
+            enter = fadeIn(animationSpec = tween(500)) + scaleIn(animationSpec = tween(500))
+        ) {
+            Row {
+                val ansParts = ansStr.padStart(totalLength).chunked(1)
+                ansParts.forEach { digit ->
+                    if (digit.trim().isNotEmpty()) {
+                        DigitBox(
+                            text = digit,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                            textStyle = textStyle.copy(
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = textStyle.fontSize * 1.1f
+                            )
+                        )
+                    } else {
+                        Text(text = digit, style = textStyle)
+                    }
+                }
+            }
+        }
+    }
+
+    // Animation controller
+    LaunchedEffect(problem) {
+        animationStep = 0
+        delay(800) // Initial delay to show the problem
+
+        // Animate through each place value (from right to left: ones, tens, hundreds, etc.)
+        for (i in 1..maxLength) {
+            animationStep = i
+            delay(1500) // Time to show each step
+        }
+
+        // Show divider
+        animationStep = maxLength + 1
+        delay(500)
+
+        // Show final answer
+        animationStep = maxLength + 2
+        delay(500)
+
+        // Keep final state
+        animationStep = maxLength + 3
+    }
+}
+
+@Composable
+fun AnimatedSubtractionHintLayout(problem: ArithmeticProblem) {
+    if (problem.operator != "-") return
+
+    val n1Str = problem.number1.toString()
+    val n2Str = problem.number2.toString()
+    val ansStr = problem.answer.toString()
+    val maxLength = maxOf(n1Str.length, n2Str.length, ansStr.length)
+
+    val num1Padded = n1Str.padStart(maxLength, ' ')
+    val num2Padded = n2Str.padStart(maxLength, ' ')
+    val ansPadded = ansStr.padStart(maxLength, ' ')
+    val borrowInfo = calculateBorrowInfo(problem)
+
+    // Animation step state: 0 = show problem, 1+ = animate each borrow operation step by step
+    var animationStep by remember { mutableIntStateOf(0) }
+
+    val textStyle = MaterialTheme.typography.displayLarge.copy(fontFamily = FontFamily.Monospace)
+    val smallTextStyle = MaterialTheme.typography.headlineSmall.copy(fontFamily = FontFamily.Monospace)
+
+    val placeColors = listOf(
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.tertiary,
+        ToyOrange,
+        ToyPink
+    )
+
+    // Calculate borrow steps - each position that needs borrowing gets a step
+    val borrowSteps = mutableListOf<Int>()
+    for (i in borrowInfo.indices.reversed()) {
+        if (borrowInfo[i]?.afterBorrowing != null) {
+            borrowSteps.add(maxLength - 1 - i) // Convert to position from right
+        }
+    }
+
+    Column(
+        horizontalAlignment = Alignment.End,
+        modifier = Modifier.padding(end = 32.dp)
+    ) {
+        // First number (minuend) with animated borrow visualization
+        Row {
+            borrowInfo.forEachIndexed { index, info ->
+                val digitPosition = maxLength - 1 - index
+                val isCurrentlyAnimating = animationStep > 0 &&
+                    borrowSteps.getOrNull(animationStep - 1) == digitPosition
+                val shouldShowBorrowEffect = animationStep > borrowSteps.indexOf(digitPosition) + 1
+                val shouldShowLendEffect = info?.lendingColorIndex != null &&
+                    animationStep > borrowSteps.indexOfFirst { pos ->
+                        val borrowerIndex = maxLength - 1 - pos
+                        borrowInfo[borrowerIndex]?.lendingColorIndex == info.lendingColorIndex
+                    } + 1
+
+                if (info != null) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        // Top: Value after it borrowed (e.g., "13")
+                        AnimatedVisibility(
+                            visible = info.afterBorrowing != null && shouldShowBorrowEffect,
+                            enter = fadeIn(animationSpec = tween(500)) + scaleIn(animationSpec = tween(500))
+                        ) {
+                            val color = if (info.borrowingColorIndex != null)
+                                placeColors[info.borrowingColorIndex]
+                            else MaterialTheme.colorScheme.secondary
+
+                            val animatedColor by animateColorAsState(
+                                targetValue = if (isCurrentlyAnimating) color else color.copy(alpha = 0.8f),
+                                animationSpec = tween(300)
+                            )
+
+                            Text(
+                                text = info.afterBorrowing ?: "",
+                                style = smallTextStyle.copy(color = animatedColor)
+                            )
+                        }
+
+                        // Middle: Value after it lent (e.g., "3"), with strikethrough if it also borrowed
+                        AnimatedVisibility(
+                            visible = info.afterLending != null && shouldShowLendEffect,
+                            enter = fadeIn(animationSpec = tween(400))
+                        ) {
+                            val color = if (info.lendingColorIndex != null)
+                                placeColors[info.lendingColorIndex]
+                            else MaterialTheme.colorScheme.secondary
+
+                            Text(
+                                text = info.afterLending.toString(),
+                                style = smallTextStyle.copy(
+                                    color = color.copy(alpha = 0.7f),
+                                    textDecoration = if (info.afterBorrowing != null)
+                                        TextDecoration.LineThrough else null
+                                )
+                            )
+                        }
+
+                        // Bottom: Original value with highlighting and strikethrough animation
+                        val hasChanged = info.afterLending != null || info.afterBorrowing != null
+                        val shouldHighlight = isCurrentlyAnimating ||
+                            (shouldShowBorrowEffect && info.afterBorrowing != null) ||
+                            (shouldShowLendEffect && info.afterLending != null)
+
+                        val animatedTextColor by animateColorAsState(
+                            targetValue = when {
+                                isCurrentlyAnimating -> {
+                                    if (info.borrowingColorIndex != null)
+                                        placeColors[info.borrowingColorIndex]
+                                    else if (info.lendingColorIndex != null)
+                                        placeColors[info.lendingColorIndex]
+                                    else MaterialTheme.colorScheme.primary
+                                }
+                                hasChanged && (shouldShowBorrowEffect || shouldShowLendEffect) ->
+                                    textStyle.color.copy(alpha = 0.5f)
+                                else -> textStyle.color
+                            },
+                            animationSpec = tween(300)
+                        )
+
+                        val animatedBorderWidth by animateFloatAsState(
+                            targetValue = if (isCurrentlyAnimating) 3.dp.value else 0.dp.value,
+                            animationSpec = tween(300)
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .then(
+                                    if (isCurrentlyAnimating) {
+                                        val borderColor = if (info.borrowingColorIndex != null)
+                                            placeColors[info.borrowingColorIndex]
+                                        else if (info.lendingColorIndex != null)
+                                            placeColors[info.lendingColorIndex]
+                                        else MaterialTheme.colorScheme.primary
+
+                                        Modifier.border(
+                                            animatedBorderWidth.dp,
+                                            borderColor,
+                                            RoundedCornerShape(4.dp)
+                                        ).background(
+                                            borderColor.copy(alpha = 0.1f),
+                                            RoundedCornerShape(4.dp)
+                                        )
+                                    } else Modifier
+                                )
+                                .padding(4.dp)
+                        ) {
+                            Text(
+                                text = info.original.toString(),
+                                style = textStyle.copy(
+                                    color = animatedTextColor,
+                                    textDecoration = if (hasChanged && (shouldShowBorrowEffect || shouldShowLendEffect))
+                                        TextDecoration.LineThrough else null
+                                ),
+                            )
+                        }
+                    }
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(" ", style = smallTextStyle)
+                        Text(" ", style = smallTextStyle)
+                        Text(" ", style = textStyle, modifier = Modifier.padding(horizontal = 4.dp))
+                    }
+                }
+            }
+        }
+
+        // Operator and second number with highlighting
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = "${problem.operator} ", style = textStyle)
+            num2Padded.forEachIndexed { index, digit ->
+                val digitPosition = maxLength - 1 - index
+                val isCurrentlyAnimating = animationStep > 0 &&
+                    borrowSteps.getOrNull(animationStep - 1) == digitPosition
+
+                if (digit != ' ') {
+                    val colorIndex = digitPosition % placeColors.size
+
+                    AnimatedDigitBox(
+                        text = digit.toString(),
+                        color = placeColors[colorIndex],
+                        textStyle = textStyle,
+                        isHighlighted = isCurrentlyAnimating
+                    )
+                } else {
+                    Text(
+                        text = digit.toString(),
+                        style = textStyle,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                }
+            }
+        }
+
+        // Divider
+        AnimatedVisibility(
+            visible = animationStep > borrowSteps.size + 1,
+            enter = fadeIn(animationSpec = tween(300))
+        ) {
+            Divider(
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                thickness = 2.dp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
+        // Answer
+        AnimatedVisibility(
+            visible = animationStep > borrowSteps.size + 2,
+            enter = fadeIn(animationSpec = tween(500)) + scaleIn(animationSpec = tween(500))
+        ) {
+            Row {
+                ansPadded.forEach { digit ->
+                    Text(
+                        text = digit.toString(),
+                        style = textStyle.copy(
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = textStyle.fontSize * 1.05f
+                        ),
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                }
+            }
+        }
+    }
+
+    // Animation controller
+    LaunchedEffect(problem) {
+        animationStep = 0
+        delay(800) // Initial delay to show the problem
+
+        // Animate through each borrow operation (from right to left)
+        borrowSteps.forEachIndexed { index, _ ->
+            animationStep = index + 1
+            delay(2000) // Time to show each borrow step
+        }
+
+        // Show divider
+        animationStep = borrowSteps.size + 1
+        delay(500)
+
+        // Show final answer
+        animationStep = borrowSteps.size + 2
+        delay(500)
+
+        // Keep final state
+        animationStep = borrowSteps.size + 3
+    }
+}
+
+@Composable
+fun AnimatedDigitBox(
+    text: String,
+    color: Color,
+    textStyle: TextStyle,
+    isHighlighted: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val animatedBorderWidth by animateFloatAsState(
+        targetValue = if (isHighlighted) 4.dp.value else 2.dp.value,
+        animationSpec = tween(300)
+    )
+
+    val animatedColor by animateColorAsState(
+        targetValue = if (isHighlighted) color else color.copy(alpha = 0.7f),
+        animationSpec = tween(300)
+    )
+
+    val animatedBackgroundColor by animateColorAsState(
+        targetValue = if (isHighlighted) color.copy(alpha = 0.1f) else Color.Transparent,
+        animationSpec = tween(300)
+    )
+
+    Box(
+        modifier = modifier
+            .border(animatedBorderWidth.dp, animatedColor, RoundedCornerShape(4.dp))
+            .background(animatedBackgroundColor, RoundedCornerShape(4.dp))
+            .padding(4.dp)
+    ) {
+        Text(
+            text = text,
+            style = textStyle.copy(
+                color = if (isHighlighted) color else textStyle.color
+            )
+        )
     }
 }
 

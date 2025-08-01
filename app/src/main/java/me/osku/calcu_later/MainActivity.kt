@@ -41,6 +41,8 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import me.osku.calcu_later.data.SettingsRepository
+import me.osku.calcu_later.ui.AnimatedAdditionHintLayout
+import me.osku.calcu_later.ui.AnimatedSubtractionHintLayout
 import me.osku.calcu_later.ui.DrawingCanvas
 import me.osku.calcu_later.ui.MultiLayerHintLayout
 import me.osku.calcu_later.ui.SettingsScreen
@@ -61,7 +63,7 @@ data class ArithmeticProblem(
 
 // Enum to manage hint states
 enum class HintState {
-    None, ShowAnswer, Standard, MultiLayer
+    None, ShowAnswer, Standard, MultiLayer, AnimatedMultiLayer
 }
 
 // 2. ViewModel to manage state and logic
@@ -79,6 +81,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var operationMultiplication by mutableStateOf(false)
     var operationDivision by mutableStateOf(false)
 
+    // Hint settings
+    var hintShowAnswer by mutableStateOf(true)
+    var hintStandard by mutableStateOf(true)
+    var hintMultiLayer by mutableStateOf(true)
+    var hintAnimated by mutableStateOf(true)
+
 
     var problem by mutableStateOf(generateProblem())
         private set
@@ -91,7 +99,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         private set
 
     val showAnswer: Boolean
-        get() = hintState == HintState.ShowAnswer || hintState == HintState.Standard || hintState == HintState.MultiLayer
+        get() = hintState == HintState.ShowAnswer || hintState == HintState.Standard || hintState == HintState.MultiLayer || hintState == HintState.AnimatedMultiLayer
 
     init {
         // Load initial settings
@@ -102,6 +110,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         operationSubtraction = settingsRepository.operationSubtraction
         operationMultiplication = settingsRepository.operationMultiplication
         operationDivision = settingsRepository.operationDivision
+
+        // Load hint settings
+        hintShowAnswer = settingsRepository.hintShowAnswer
+        hintStandard = settingsRepository.hintStandard
+        hintMultiLayer = settingsRepository.hintMultiLayer
+        hintAnimated = settingsRepository.hintAnimated
 
         // Observe changes and save them
         snapshotFlow { digits1 }.onEach { settingsRepository.digits1 = it }.launchIn(viewModelScope)
@@ -119,6 +133,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }.launchIn(viewModelScope)
         snapshotFlow { operationDivision }.onEach { settingsRepository.operationDivision = it }
             .launchIn(viewModelScope)
+
+        // Observe hint settings changes
+        snapshotFlow { hintShowAnswer }.onEach { settingsRepository.hintShowAnswer = it }
+            .launchIn(viewModelScope)
+        snapshotFlow { hintStandard }.onEach { settingsRepository.hintStandard = it }
+            .launchIn(viewModelScope)
+        snapshotFlow { hintMultiLayer }.onEach { settingsRepository.hintMultiLayer = it }
+            .launchIn(viewModelScope)
+        snapshotFlow { hintAnimated }.onEach { settingsRepository.hintAnimated = it }
+            .launchIn(viewModelScope)
     }
 
     fun generateNewProblem() {
@@ -127,14 +151,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun cycleHint() {
-        hintState = when (hintState) {
-            HintState.None -> HintState.ShowAnswer
-            HintState.ShowAnswer -> {
-                if (problem.operator == "+") HintState.MultiLayer else HintState.Standard
-            }
+        // Get available hint states based on user settings
+        val availableHints = mutableListOf<HintState>()
 
-            HintState.Standard -> HintState.None
-            HintState.MultiLayer -> HintState.Standard // Cycle back
+        if (hintShowAnswer) availableHints.add(HintState.ShowAnswer)
+        if (hintStandard) availableHints.add(HintState.Standard)
+
+        // MultiLayer and AnimatedMultiLayer are only for addition
+        if (problem.operator == "+") {
+            if (hintMultiLayer) availableHints.add(HintState.MultiLayer)
+            if (hintAnimated) availableHints.add(HintState.AnimatedMultiLayer)
+        }
+
+        // AnimatedMultiLayer is also available for subtraction
+        if (problem.operator == "-") {
+            if (hintAnimated) availableHints.add(HintState.AnimatedMultiLayer)
+        }
+
+        // If no hints are enabled, do nothing
+        if (availableHints.isEmpty()) {
+            hintState = HintState.None
+            return
+        }
+
+        // Cycle through available hints
+        val currentIndex = availableHints.indexOf(hintState)
+        hintState = if (currentIndex == -1 || currentIndex >= availableHints.size - 1) {
+            // If current state is not in available hints or is the last one, go to None or first hint
+            if (hintState == HintState.None) {
+                availableHints.first()
+            } else {
+                HintState.None
+            }
+        } else {
+            // Go to next available hint
+            availableHints[currentIndex + 1]
         }
     }
 
@@ -391,6 +442,20 @@ fun MainScreen(viewModel: MainViewModel) {
                             ) {
                                 if (problem.operator == "+") {
                                     MultiLayerHintLayout(problem = problem)
+                                }
+                            }
+                        }
+                        HintState.AnimatedMultiLayer -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (problem.operator == "+") {
+                                    AnimatedAdditionHintLayout(problem = problem)
+                                } else if (problem.operator == "-") {
+                                    AnimatedSubtractionHintLayout(problem = problem)
                                 }
                             }
                         }

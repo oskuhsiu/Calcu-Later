@@ -15,6 +15,10 @@ class SettingsRepository(context: Context) {
         private const val KEY_OP_SUBTRACTION = "op_subtraction"
         private const val KEY_OP_MULTIPLICATION = "op_multiplication"
         private const val KEY_OP_DIVISION = "op_division"
+        private const val KEY_HINT_SHOW_ANSWER = "hint_show_answer"
+        private const val KEY_HINT_STANDARD = "hint_standard"
+        private const val KEY_HINT_MULTI_LAYER = "hint_multi_layer"
+        private const val KEY_HINT_ANIMATED = "hint_animated"
     }
 
     var digits1: Int
@@ -44,4 +48,21 @@ class SettingsRepository(context: Context) {
     var operationDivision: Boolean
         get() = prefs.getBoolean(KEY_OP_DIVISION, false)
         set(value) = prefs.edit().putBoolean(KEY_OP_DIVISION, value).apply()
+
+    // Hint settings - all enabled by default
+    var hintShowAnswer: Boolean
+        get() = prefs.getBoolean(KEY_HINT_SHOW_ANSWER, true)
+        set(value) = prefs.edit().putBoolean(KEY_HINT_SHOW_ANSWER, value).apply()
+
+    var hintStandard: Boolean
+        get() = prefs.getBoolean(KEY_HINT_STANDARD, true)
+        set(value) = prefs.edit().putBoolean(KEY_HINT_STANDARD, value).apply()
+
+    var hintMultiLayer: Boolean
+        get() = prefs.getBoolean(KEY_HINT_MULTI_LAYER, true)
+        set(value) = prefs.edit().putBoolean(KEY_HINT_MULTI_LAYER, value).apply()
+
+    var hintAnimated: Boolean
+        get() = prefs.getBoolean(KEY_HINT_ANIMATED, true)
+        set(value) = prefs.edit().putBoolean(KEY_HINT_ANIMATED, value).apply()
 }

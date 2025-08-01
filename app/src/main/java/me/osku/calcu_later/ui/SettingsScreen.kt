@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Divider
@@ -38,6 +40,8 @@ fun SettingsScreen(
         onDone()
     }
 
+    val scrollState = rememberScrollState()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -46,41 +50,64 @@ fun SettingsScreen(
     ) {
         Text("設定", style = MaterialTheme.typography.headlineMedium)
 
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // --- Number of Digits ---
-        SectionTitle("數字位數")
-        DigitsSettingRow("數字1 位數:", tempDigits1) { tempDigits1 = it }
-        DigitsSettingRow("數字2 位數:", tempDigits2) { tempDigits2 = it }
-
-        Spacer(modifier = Modifier.height(16.dp))
-        Divider()
         Spacer(modifier = Modifier.height(16.dp))
 
-        // --- Allowed Operations ---
-        SectionTitle("運算類型")
-        OperationCheckbox("加法 (+)", viewModel.operationAddition) { viewModel.operationAddition = it }
-        OperationCheckbox("減法 (-)", viewModel.operationSubtraction) { viewModel.operationSubtraction = it }
-        OperationCheckbox("乘法 (×)", viewModel.operationMultiplication) { viewModel.operationMultiplication = it }
-        OperationCheckbox("除法 (÷)", viewModel.operationDivision) { viewModel.operationDivision = it }
+        // Scrollable content
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(scrollState)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Spacer(modifier = Modifier.height(16.dp))
 
-        if (viewModel.operationSubtraction) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("允許負數結果")
-                Switch(
-                    checked = viewModel.allowNegativeResults,
-                    onCheckedChange = { viewModel.allowNegativeResults = it }
-                )
+            // --- Number of Digits ---
+            SectionTitle("數字位數")
+            DigitsSettingRow("數字1 位數:", tempDigits1) { tempDigits1 = it }
+            DigitsSettingRow("數字2 位數:", tempDigits2) { tempDigits2 = it }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Divider()
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // --- Allowed Operations ---
+            SectionTitle("運算類型")
+            OperationCheckbox("加法 (+)", viewModel.operationAddition) { viewModel.operationAddition = it }
+            OperationCheckbox("減法 (-)", viewModel.operationSubtraction) { viewModel.operationSubtraction = it }
+            OperationCheckbox("乘法 (×)", viewModel.operationMultiplication) { viewModel.operationMultiplication = it }
+            OperationCheckbox("除法 (÷)", viewModel.operationDivision) { viewModel.operationDivision = it }
+
+            if (viewModel.operationSubtraction) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("允許負數結果")
+                    Switch(
+                        checked = viewModel.allowNegativeResults,
+                        onCheckedChange = { viewModel.allowNegativeResults = it }
+                    )
+                }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Divider()
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // --- Hint Types ---
+            SectionTitle("提示類型")
+            OperationCheckbox("顯示答案", viewModel.hintShowAnswer) { viewModel.hintShowAnswer = it }
+            OperationCheckbox("標準提示", viewModel.hintStandard) { viewModel.hintStandard = it }
+            OperationCheckbox("多層提示", viewModel.hintMultiLayer) { viewModel.hintMultiLayer = it }
+            OperationCheckbox("動畫提示", viewModel.hintAnimated) { viewModel.hintAnimated = it }
+
+            // Add some bottom padding to ensure content is not cut off
+            Spacer(modifier = Modifier.height(32.dp))
         }
 
-
-        Spacer(modifier = Modifier.weight(1f)) // Push button to the bottom
-
+        // Fixed bottom button
         Button(
             onClick = onDoneClick,
             modifier = Modifier.fillMaxWidth()
@@ -111,12 +138,12 @@ private fun DigitsSettingRow(label: String, value: String, onValueChange: (Strin
         Text(label)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Button(
-                onClick = { onValueChange(((value.toIntOrNull() ?: 1) - 1).coerceAtLeast(1).toString()) },
+                onClick = { onValueChange(((value.toIntOrNull() ?: 1) - 1).coerceIn(1..4).toString()) },
                 modifier = Modifier.padding(end = 8.dp)
             ) { Text("-") }
             Text(value, modifier = Modifier.padding(horizontal = 8.dp))
             Button(
-                onClick = { onValueChange(((value.toIntOrNull() ?: 1) + 1).toString()) },
+                onClick = { onValueChange(((value.toIntOrNull() ?: 1) + 1).coerceIn(1..4).toString()) },
                 modifier = Modifier.padding(start = 8.dp)
             ) { Text("+") }
         }
