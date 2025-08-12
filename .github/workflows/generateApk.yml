@@ -1,0 +1,49 @@
+name: Build Android APK or AAB
+
+on:
+  workflow_dispatch:  # 僅允許手動觸發
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  # 使用 Ubuntu 環境
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: master  # 指定 build 的 branch，例如 master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'  # Android 通常需要 JDK 17
+          distribution: 'temurin'
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      - name: Decode Keystore
+        env:
+          SIGNING_JKS_FILE: ${{ secrets.SIGNING_JKS_FILE }}
+        run: echo "$SIGNING_JKS_FILE" | base64 -d > android-signing-keystore.jks
+
+      - name: Build Release APK
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleRelease  # 建置 APK；若要 AAB，改為 ./gradlew bundleRelease
+        env:
+          SIGNING_KEYSTORE: android-signing-keystore.jks
+          SIGNING_KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: app/build/outputs/apk/release/*.apk  # 若建置 AAB，改為 app/build/outputs/bundle/release/*.aab
