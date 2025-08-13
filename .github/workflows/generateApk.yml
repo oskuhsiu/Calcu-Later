@@ -1,4 +1,4 @@
-name: Build Android APK and Release
+name: Build Android APK or AAB and Release
 
 on:
   workflow_dispatch:
@@ -14,11 +14,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Grant write access for creating Releases
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: master  # 指定 build 的 branch，例如 master
+          ref: master  # Specify the branch, e.g., master
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
