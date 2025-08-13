@@ -48,16 +48,34 @@ jobs:
           chmod +x ./gradlew
           if [ "${{ inputs.build_type }}" = "apk" ]; then
             ./gradlew assembleRelease
-            echo "artifact_path=app/build/outputs/apk/release/*.apk" >> $GITHUB_OUTPUT
+            echo "unsigned_artifact=app/build/outputs/apk/release/app-release-unsigned.apk" >> $GITHUB_OUTPUT
+            echo "signed_artifact=app/build/outputs/apk/release/app-release-signed.apk" >> $GITHUB_OUTPUT
           elif [ "${{ inputs.build_type }}" = "aab" ]; then
             ./gradlew bundleRelease
-            echo "artifact_path=app/build/outputs/bundle/release/*.aab" >> $GITHUB_OUTPUT
+            echo "unsigned_artifact=app/build/outputs/bundle/release/app-release.aab" >> $GITHUB_OUTPUT
+            echo "signed_artifact=app/build/outputs/bundle/release/app-release-signed.aab" >> $GITHUB_OUTPUT
           else
             echo "Invalid build_type: ${{ inputs.build_type }}"
             exit 1
           fi
+
+      - name: Sign Artifact
+        run: |
+          # Install apksigner (part of Android build-tools)
+          sudo apt-get update
+          sudo apt-get install -y android-sdk
+          export ANDROID_HOME=/usr/lib/android-sdk
+          build_tools_version=$(ls $ANDROID_HOME/build-tools | sort -V | tail -n 1)
+          apksigner=$ANDROID_HOME/build-tools/$build_tools_version/apksigner
+          
+          # Sign the artifact
+          $apksigner sign --ks android-signing-keystore.jks \
+            --ks-key-alias ${{ secrets.SIGNING_KEY_ALIAS }} \
+            --ks-pass pass:${{ secrets.SIGNING_KEYSTORE_PASSWORD }} \
+            --key-pass pass:${{ secrets.SIGNING_KEY_PASSWORD }} \
+            --out ${{ steps.build.outputs.signed_artifact }} \
+            ${{ steps.build.outputs.unsigned_artifact }}
         env:
-          SIGNING_KEYSTORE: android-signing-keystore.jks
           SIGNING_KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
@@ -66,5 +84,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.release_tag }}
-          files: ${{ steps.build.outputs.artifact_path }}
+          files: ${{ steps.build.outputs.signed_artifact }}
           generate_release_notes: true
